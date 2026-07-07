@@ -99,7 +99,12 @@ def main(cfg: BertConfig | None = None) -> dict[str, float]:
 
     tokenizer = BertTokenizer.from_pretrained(cfg.model_name)
     train_loader = create_data_loader(
-        df_train, tokenizer, cfg.max_length, cfg.batch_size, True, generator=make_generator(cfg.seed)
+        df_train,
+        tokenizer,
+        cfg.max_length,
+        cfg.batch_size,
+        True,
+        generator=make_generator(cfg.seed),
     )
     val_loader = create_data_loader(df_val, tokenizer, cfg.max_length, cfg.batch_size, False)
     test_loader = create_data_loader(df_test, tokenizer, cfg.max_length, cfg.batch_size, False)

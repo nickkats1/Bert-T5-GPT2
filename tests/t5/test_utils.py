@@ -29,9 +29,9 @@ class TestLoadData:
 
     def test_nans_become_empty_strings(self, tmp_path):
         path = tmp_path / "nan.csv"
-        pd.DataFrame(
-            {"Headlines": ["h1", None], "Description": ["d1", "d2"]}
-        ).to_csv(path, index=False)
+        pd.DataFrame({"Headlines": ["h1", None], "Description": ["d1", "d2"]}).to_csv(
+            path, index=False
+        )
         df = load_data(path)
         assert (df["Headlines"] == "").any()
         assert df.isna().sum().sum() == 0

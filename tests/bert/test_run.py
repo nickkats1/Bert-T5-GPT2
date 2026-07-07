@@ -10,9 +10,7 @@ class TestParseArgs:
         assert cfg.model_name == BertConfig().model_name
 
     def test_overrides_applied(self):
-        cfg = parse_args(
-            ["--epochs", "1", "--device", "cpu", "--batch-size", "4", "--seed", "7"]
-        )
+        cfg = parse_args(["--epochs", "1", "--device", "cpu", "--batch-size", "4", "--seed", "7"])
         assert cfg.epochs == 1
         assert cfg.device == "cpu"
         assert cfg.batch_size == 4

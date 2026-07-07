@@ -80,7 +80,12 @@ class TestT5Trainer:
         model, _, optimizer = _build()
         with pytest.raises(ValueError):
             train(
-                model, empty, optimizer, torch.device("cpu"), tokenizer=_FakeTokenizer(), log_every=0
+                model,
+                empty,
+                optimizer,
+                torch.device("cpu"),
+                tokenizer=_FakeTokenizer(),
+                log_every=0,
             )
 
     def test_validate_returns_aligned_predictions(self):
