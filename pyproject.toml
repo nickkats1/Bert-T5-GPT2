@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bert-t5-gpt2"
+version = "0.1.0"
+description = "Fine-tuning BERT, GPT-2, and T5 on news headline data."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Nick" }]
+dependencies = [
+    "numpy>=1.26,<3",
+    "pandas>=2.0,<4",
+    "scikit-learn>=1.4,<2",
+    "torch>=2.2,<3",
+    "transformers>=4.40,<6",
+    "tokenizers>=0.15,<1",
+    "sentencepiece>=0.1.99,<1",
+    "safetensors>=0.4,<1",
+    "rouge_score>=0.1.2,<1",
+    "nltk>=3.8,<4",
+    "textblob>=0.18,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+bertscore = [
+    "bert_score>=0.3.13",
+]
+viz = [
+    "matplotlib>=3.7",
+    "seaborn>=0.13",
+]
+
+[project.scripts]
+bert-run = "headlines.bert.run:main"
+gpt2-run = "headlines.gpt2.run:main"
+t5-run = "headlines.t5.run:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["headlines*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --tb=short --strict-markers --strict-config"
+xfail_strict = true
+norecursedirs = [".git", ".venv", "venv", "build", "dist", ".mypy_cache", ".pytest_cache", "__pycache__"]
+markers = [
+    "slow: long-running tests",
+    "gpu: requires a CUDA device",
+    "integration: cross-module/integration tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["venv", ".venv", "build", "dist", ".mypy_cache", ".pytest_cache", "notebooks"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["headlines"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

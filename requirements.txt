@@ -1,0 +1,15 @@
+numpy>=1.26,<3
+pandas>=2.0,<4
+scikit-learn>=1.4,<2
+torch>=2.2,<3
+transformers>=4.40,<6
+tokenizers>=0.15,<1
+sentencepiece>=0.1.99,<1
+safetensors>=0.4,<1
+rouge_score>=0.1.2,<1
+nltk>=3.8,<4
+textblob>=0.18,<1
+
+# Dev / test
+pytest>=8
+ruff>=0.6
