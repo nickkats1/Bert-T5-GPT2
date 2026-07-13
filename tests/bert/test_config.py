@@ -32,6 +32,10 @@ class TestBertConfig:
     def test_device(self):
         assert CONFIG.device in {"cuda", "cpu", "cuda:0"}
 
+    def test_label_smoothing(self):
+        assert isinstance(CONFIG.label_smoothing, float)
+        assert 0.0 <= CONFIG.label_smoothing < 1.0
+
     def test_split_sizes(self):
         assert CONFIG.holdout_size == 0.50
         assert CONFIG.test_size_from_holdout == 0.20

@@ -111,7 +111,7 @@ def main(cfg: BertConfig | None = None) -> dict[str, float]:
     ).to(device)
     logger.info("Trainable parameters: %s", f"{count_parameters(model):,}")
 
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=cfg.label_smoothing)
     optimizer = AdamW(model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
     total_steps = max(1, len(train_loader) * cfg.epochs)
     scheduler = get_linear_schedule_with_warmup(
@@ -120,8 +120,8 @@ def main(cfg: BertConfig | None = None) -> dict[str, float]:
         num_training_steps=total_steps,
     )
 
-    # Early-stop on validation accuracy and keep the best-performing weights.
-    early_stopping = EarlyStopping(patience=cfg.patience, mode="max")
+    # Early-stop on validation loss and keep the best-performing weights.
+    early_stopping = EarlyStopping(patience=cfg.patience, mode="min")
     best_state = None
     for epoch in range(cfg.epochs):
         train_acc, train_loss = train(
@@ -145,11 +145,11 @@ def main(cfg: BertConfig | None = None) -> dict[str, float]:
             val_acc,
             val_loss,
         )
-        if early_stopping.step(val_acc):
+        if early_stopping.step(val_loss):
             best_state = copy.deepcopy(model.state_dict())
         if early_stopping.should_stop:
             logger.info(
-                "Early stopping at epoch %d (best val acc %.4f)", epoch + 1, early_stopping.best
+                "Early stopping at epoch %d (best val loss %.4f)", epoch + 1, early_stopping.best
             )
             break
 

@@ -22,17 +22,18 @@ class BertConfig:
         test_size_from_holdout: Fraction of the holdout used for the test set.
         weight_decay: AdamW weight decay.
         warmup_ratio: Fraction of total steps spent in LR warmup.
-        patience: Early-stopping patience in epochs (monitors val accuracy).
+        patience: Early-stopping patience in epochs (monitors val loss).
         seed: RNG seed for reproducibility.
         num_classes: Number of sentiment classes.
         dropout: Dropout probability before the classification head.
+        label_smoothing: Cross-entropy label smoothing to curb overfitting.
     """
 
     model_name: str = "bert-base-uncased"
     data_path: str = "data/guardian_headlines.csv"
     output_dir: str = "artifacts/bert/"
     epochs: int = 4
-    learning_rate: float = 2e-5
+    learning_rate: float = 1e-5
     max_length: int = 80
     batch_size: int = 12
     device: str = "cuda"
@@ -43,7 +44,8 @@ class BertConfig:
     patience: int = 2
     seed: int = 42
     num_classes: int = 3
-    dropout: float = 0.3
+    dropout: float = 0.1
+    label_smoothing: float = 0.1
 
 
 CONFIG = BertConfig()
