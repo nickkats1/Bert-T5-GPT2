@@ -21,9 +21,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
       - name: ruff check
-        run: ruff check headlines/ tests/
+        run: ruff check src/ tests/
       - name: ruff format --check
-        run: ruff format --check headlines/ tests/
+        run: ruff format --check src/ tests/
 
   test:
     name: Test (pytest)

@@ -14,11 +14,12 @@ architecture, each in its own self-contained package with a runnable CLI.
 ```text
 bert-t5-gpt2/
 ├── data/                     # Raw CSV inputs (Guardian + Reuters)
-├── headlines/                # Importable package
-│   ├── common.py             # seed_everything, resolve_device, logging, JSON I/O
-│   ├── bert/                 # BERT sentiment classifier
-│   ├── gpt2/                 # GPT-2 fine-tuning
-│   └── t5/                   # T5 summarization
+├── src/
+│   └── headlines/            # Importable package (src layout)
+│       ├── common.py         # seed_everything, resolve_device, logging, JSON I/O
+│       ├── bert/             # BERT sentiment classifier
+│       ├── gpt2/             # GPT-2 fine-tuning
+│       └── t5/               # T5 summarization
 ├── tests/                    # Pytest suite
 ├── artifacts/                # Saved models / predictions / metrics (git-ignored)
 ├── pyproject.toml            # Packaging, pytest, and ruff config
@@ -29,7 +30,7 @@ bert-t5-gpt2/
 Every model package follows the same shape:
 
 ```text
-headlines/<model>/
+src/headlines/<model>/
 ├── config.py     # Frozen @dataclass of hyperparameters (CONFIG)
 ├── utils.py      # Data loading / cleaning / splitting helpers
 ├── dataset.py    # PyTorch Dataset
@@ -45,7 +46,8 @@ headlines/<model>/
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-# editable install with dev extras:  pip install -e ".[dev]"
+pip install -e .   # makes the src-layout `headlines` package importable
+# dev extras (pytest, ruff):  pip install -e ".[dev]"
 
 # One-time NLTK data for the T5 METEOR metric:
 python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
@@ -100,8 +102,8 @@ to CPU when no GPU is present. Artifacts (saved model, predictions,
 ```bash
 pytest                          # full suite
 pytest tests/bert -v            # one package
-ruff check headlines/ tests/    # lint
-ruff format headlines/ tests/   # auto-format
+ruff check src/ tests/          # lint
+ruff format src/ tests/         # auto-format
 ```
 
 CI runs the same checks on every push / PR (`.github/workflows/ci.yml`).
