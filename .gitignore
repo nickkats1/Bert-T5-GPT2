@@ -19,6 +19,18 @@ build/
 dist/
 *.egg-info/
 
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
 # Model / training artifacts
 artifacts/
-notebooks/.ipynb_checkpoints/
+bert-base-uncased-headlines/
+t5-base-reuters/
+gpt2-headlines/
+examples/.ipynb_checkpoints/
+
+# Scratch notebooks at the repo root; the kept ones live in examples/
+/*.ipynb

@@ -1,113 +1,89 @@
-# Headlines: BERT · T5 · GPT-2
+# Headlines: Transformers
 
-Fine-tuning three transformer architectures on news-headline data — one task per
-architecture, each in its own self-contained package with a runnable CLI.
+This code base trains three popular pre-trained transformers: Bert(encoder-only), T5(seq-to-seq) and gpt2(text-generation) on a dataset consisting of article headlines.
 
-| Model | Task | Data | Reported metrics |
-| ----- | ---- | ---- | ---------------- |
-| **BERT** | Sentiment classification (3 classes) | Guardian headlines | accuracy, macro/weighted precision·recall·F1, MCC, confusion matrix |
-| **GPT-2** | Causal language modeling | Reuters descriptions | loss, perplexity, sample generations |
-| **T5** | Summarization (Description → Headline) | Reuters headlines + descriptions | ROUGE-1/2/L, METEOR, gen-length, optional BERTScore |
+## Overview
 
-## Project layout
+The purpose of this repository is to fully fine tune the three parts of the transformer based on popular pretrained models for different tasks and evaluation metrics
 
-```text
-bert-t5-gpt2/
-├── data/                     # Raw CSV inputs (Guardian + Reuters)
-├── src/
-│   └── headlines/            # Importable package (src layout)
-│       ├── common.py         # seed_everything, resolve_device, logging, JSON I/O
-│       ├── bert/             # BERT sentiment classifier
-│       ├── gpt2/             # GPT-2 fine-tuning
-│       └── t5/               # T5 summarization
-├── tests/                    # Pytest suite
-├── artifacts/                # Saved models / predictions / metrics (git-ignored)
-├── pyproject.toml            # Packaging, pytest, and ruff config
-├── requirements.txt
-└── .github/workflows/ci.yml  # ruff + pytest on Python 3.11–3.13
-```
+### Tasks
 
-Every model package follows the same shape:
+- **Text Classification**: Bert, Encoder-only part of transformer
+- **Text Summarization**: T5, encoder-decoder part of the transformer
+- **Text Generation**: GPT2: Decoder-Only, autoregressive part of the transformer.
 
-```text
-src/headlines/<model>/
-├── config.py     # Frozen @dataclass of hyperparameters (CONFIG)
-├── utils.py      # Data loading / cleaning / splitting helpers
-├── dataset.py    # PyTorch Dataset
-├── model.py      # (BERT only — GPT-2/T5 use HuggingFace heads directly)
-├── trainer.py    # train() / validate() loops
-├── metrics.py    # Task-appropriate evaluation
-└── run.py        # End-to-end entry point with an argparse CLI
-```
-
-## Installation
+## Getting Started
 
 ```bash
-python -m venv venv
-source venv/bin/activate
+git clone git@github.com:nickkats1/Bert-T5-GPT2.git
+cd Bert-T5-GPT2
+
 pip install -r requirements.txt
-pip install -e .   # makes the src-layout `headlines` package importable
-# dev extras (pytest, ruff):  pip install -e ".[dev]"
-
-# One-time NLTK data for the T5 METEOR metric:
-python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
+pip install -e .
 ```
 
-The CSV inputs are tracked under `data/`; no external download is required.
+**Note**: make sure you have a gpu or can run this repo where you can rent a gpu.
 
-## Quick start
+## Running
 
-Run any pipeline from the repo root:
+Each model is its own package under `headlines/`, carrying its own `config.py`, `data.py`,
+`train.py`, `eval.py`, and `predictions.py`. Installing the package puts three commands on your
+path:
 
 ```bash
-python -m headlines.bert.run     # BERT sentiment classifier
-python -m headlines.gpt2.run     # GPT-2 fine-tuning
-python -m headlines.t5.run       # T5 summarization
+train-bert     # BERT sentiment classification of Guardian headlines
+train-t5       # T5 summarization of Reuters descriptions into headlines
+train-gpt2     # GPT-2 causal language modelling on Reuters descriptions
 ```
 
-Or via the installed entry points (`bert-run`, `gpt2-run`, `t5-run`).
+Training settings come from `transformers.TrainingArguments`, filled in from a frozen dataclass per
+model. To change a run, edit that dataclass — `headlines/t5/config.py` for T5, and so on.
 
-The common hyperparameters (model, epochs, learning rate, batch size, device,
-seed, …) are exposed as CLI flags, so most experiments need no file edits — run
-any pipeline with `--help` for its full list:
+Each model also has a `predictions.py` that reloads the saved checkpoint and scores the held-out
+test split:
 
 ```bash
-python -m headlines.bert.run --epochs 1 --device cpu --batch-size 4
-python -m headlines.t5.run   --model-name t5-small --epochs 1 --bertscore
-python -m headlines.gpt2.run --epochs 1 --no-amp
+python -m headlines.bert.predictions
 ```
 
-Pipelines auto-detect CUDA via `headlines.common.resolve_device` and fall back
-to CPU when no GPU is present. Artifacts (saved model, predictions,
-`metrics.json`) land under `artifacts/<model>/`.
+`examples/bert.ipynb` is the notebook that matches this code. The other four
+(`train_bert.ipynb`, `train_t5.ipynb`, `train_gpt2.ipynb`, `save_and_score.ipynb`) target an older
+API and do not currently run.
 
-## What each pipeline does
-
-- **BERT** derives weak sentiment labels from TextBlob polarity, stratifies a
-  train/val/test split, fine-tunes `bert-base-uncased` with a dropout +
-  linear head, and reports a full classification report on the held-out test
-  set. Note: because the labels come from TextBlob, the reported scores measure
-  how well BERT reproduces TextBlob's rule — a distillation/weak-supervision
-  setup, not gold-standard sentiment.
-- **GPT-2** fine-tunes with **mixed precision (AMP)**, **gradient accumulation**,
-  gradient clipping, and a **linear warmup** schedule — every knob in
-  `GPT2Config` is actually honored by the trainer — then samples a few
-  generations for a qualitative sanity check.
-- **T5** frames summarization as `Description → Headline`, trains with
-  teacher forcing (pad tokens masked from the loss), and evaluates with ROUGE,
-  METEOR, and an optional semantic BERTScore.
-
-## Testing & linting
+### Development
 
 ```bash
-pytest                          # full suite
-pytest tests/bert -v            # one package
-ruff check src/ tests/          # lint
-ruff format src/ tests/         # auto-format
+make test        # full suite
+make test-fast   # skips tests marked integration
+make quality     # ruff check + format --check
+make style       # apply fixes and formatting
 ```
 
-CI runs the same checks on every push / PR (`.github/workflows/ci.yml`).
+The suite builds its models from tiny randomly-initialised checkpoints on CPU, so it runs in
+seconds and never downloads or trains a real model. No test is currently marked `integration`, so
+`make test-fast` runs the same set as `make test`.
 
-## License
+## Background
 
-[MIT](LICENSE).
+The Transformer has three different parts: the encoder, the encoder-decoder (with cross-attention) and the decoder-only part.
+
+The decoder-only part is what most LLM's are train/based on.
+
+### Bert (Bi-directional)
+
+Every token attends to every other token in both directions, so the model builds one representation
+of the whole sentence. That is the right shape for classification: a head reads a single label off
+that representation. It is not a generator — it has no notion of continuing text. This repo uses
+`bert-base-uncased`, which needs `transformers>=4.48`.
+
+### T5 (encoder-decoder)
+
+The encoder reads the input, and a separate decoder writes the output while attending back to the
+encoder through cross-attention. Input and output are both text and do not have to be the same
+length, which is what summarization needs: a long description in, a short headline out.
+
+### GPT-2 (decoder-only)
+
+Each token attends only to the tokens before it, and the model is trained to predict the next one.
+That is why it generates text, and why its score is perplexity rather than accuracy or ROUGE —
+there is no single right answer to compare against, only how surprised the model is by real text.

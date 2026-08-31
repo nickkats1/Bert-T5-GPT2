@@ -1,38 +1,34 @@
-from headlines.t5.config import CONFIG, T5Config
+from dataclasses import FrozenInstanceError
+
+import pytest
+
+from headlines.t5.config import T5CFG
 
 
-class TestT5Config:
-    """Validate the default ``T5Config`` values."""
+class TestT5CFG:
+    """test the summarization settings every other t5 module reads"""
 
-    def test_is_dataclass_instance(self):
-        assert isinstance(CONFIG, T5Config)
+    def test_fields_cannot_be_reassigned(self):
+        """test the config is a shared constant rather than mutable state"""
+        config = T5CFG()
 
-    def test_source_length(self):
-        assert CONFIG.source_length == 128
+        with pytest.raises(FrozenInstanceError):
+            config.max_target_length = 8
 
-    def test_target_length(self):
-        assert CONFIG.target_length == 32
+    def test_headlines_are_shorter_than_descriptions(self):
+        """test the target budget leaves room for a headline, not an article"""
+        assert T5CFG.max_target_length < T5CFG.max_source_length
 
-    def test_batch_size(self):
-        assert CONFIG.batch_size == 12
+    def test_source_prefix_separates_from_the_text(self):
+        """test the task prefix does not run into the first word"""
+        assert T5CFG.source_prefix.endswith(" ")
 
-    def test_epochs(self):
-        assert CONFIG.epochs == 2
+    def test_evaluation_scores_generated_text(self):
+        """test rouge sees decoded headlines rather than raw logits"""
+        assert T5CFG.predict_with_generate
+        assert T5CFG.metric_for_best_model == "rouge1"
+        assert T5CFG.greater_is_better
 
-    def test_model_name(self):
-        assert CONFIG.model_name == "t5-base"
-
-    def test_learning_rate(self):
-        assert CONFIG.learning_rate == 5e-5
-
-    def test_data_path(self):
-        assert CONFIG.data_path == "data/reuters_headlines.csv"
-
-    def test_device(self):
-        assert CONFIG.device == "cuda:0"
-
-    def test_output_dir(self):
-        assert CONFIG.output_dir == "artifacts/t5/"
-
-    def test_source_prefix(self):
-        assert CONFIG.source_prefix.endswith(": ")
+    def test_data_path_points_at_a_csv(self):
+        """test load_csv is handed something it can read"""
+        assert T5CFG.data_path.endswith(".csv")
