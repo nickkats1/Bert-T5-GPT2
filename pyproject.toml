@@ -18,17 +18,14 @@ dependencies = [
     "transformers>=4.48,<6",
     "datasets>=3,<5",
     "accelerate>=1,<2",
-    "tokenizers>=0.15,<1",
-    "sentencepiece>=0.1.99,<1",
-    "safetensors>=0.4,<1",
     "rouge_score>=0.1.2,<1",
-    "evaluate>=0.4,<1",
+    "textblob>=0.18,<1",
 ]
 
 [project.scripts]
-train-bert = "headlines.bert.train:main"
-train-t5 = "headlines.t5.train:main"
-train-gpt2 = "headlines.gpt2.train:main"
+train-bert = "bert.train:main"
+train-t5 = "t5.train:main"
+train-gpt2 = "gpt2.train:main"
 
 [project.optional-dependencies]
 dev = [
@@ -38,13 +35,13 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["headlines*"]
+where = ["src"]
+include = ["bert*", "gpt2*", "t5*"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]
 addopts = "-ra --tb=short --strict-markers --strict-config"
 xfail_strict = true
 norecursedirs = [".git", ".venv", "venv", "build", "dist", ".mypy_cache", ".pytest_cache", "__pycache__"]
@@ -53,14 +50,14 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["headlines"]
+source = ["bert", "gpt2", "t5"]
 branch = true
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
 exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
-fail_under = 60
+fail_under = 85
 
 [tool.ruff]
 line-length = 119
@@ -89,7 +86,7 @@ ignore = [
 "__init__.py" = ["F401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["headlines"]
+known-first-party = ["bert", "gpt2", "t5"]
 lines-after-imports = 2
 
 [tool.ruff.format]

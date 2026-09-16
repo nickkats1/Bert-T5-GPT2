@@ -27,8 +27,8 @@ coverage.xml
 
 # Model / training artifacts
 artifacts/
-bert-base-uncased-headlines/
-t5-base-reuters/
+bert-headlines/
+t5-headlines/
 gpt2-headlines/
 examples/.ipynb_checkpoints/
 

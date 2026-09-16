@@ -14,6 +14,53 @@ The main reason for this repo, is to show the history of the transformer and the
 - **Text Generation**: GPT2: Decoder-Only, autoregressive part of the transformer for text-generation tasks.
 
 
+## Data
+
+Two CSVs live in `data/`:
+
+- `guardian_headlines.csv` with `Time` and `Headlines`
+- `reuters_headlines.csv` with `Headlines`, `Time` and `Description`
+
+Neither has a label column, so for BERT each headline is labelled Negative, Neutral or Positive
+from its TextBlob polarity. T5 learns `Description` to `Headlines`, and GPT-2 just learns the
+headlines.
+
+## Install
+
+```bash
+pip install -e ".[dev]"
+```
+
+Python 3.11 or newer.
+
+## Train
+
+```bash
+train-bert
+train-t5
+train-gpt2
+```
+
+Each one fine-tunes on a GPU and saves the best checkpoint to `bert-headlines/`, `t5-headlines/`
+or `gpt2-headlines/`. The notebooks in `examples/` are the same runs on Colab.
+
+| Model | Scored by |
+| --- | --- |
+| BERT | accuracy, weighted F1 |
+| T5 | ROUGE-1, ROUGE-2, ROUGE-L |
+| GPT-2 | perplexity |
+
+## Development
+
+```bash
+make style      # fix lint and formatting
+make quality    # what CI checks
+make test
+make coverage   # fails under 85%
+```
+
+Tests run on `hf-internal-testing` tiny-random checkpoints, so they need no GPU.
+
 ### Bert (Encoder-Only)
 
 Every token attends to every other token in both directions, so the model builds one representation
@@ -40,5 +87,5 @@ length, which is what summarization needs: a long description in, a short headli
 
 ## License
 
-[MIT](/home/nick/github-projects/bert-t5-gpt2/LICENSE)
+[MIT](LICENSE)
 

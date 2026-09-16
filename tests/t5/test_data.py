@@ -1,76 +1,92 @@
+import dataclasses
+
+import pandas as pd
 import pytest
 
-from headlines.t5.config import T5CFG
-from headlines.t5.data import load_csv, split_csv, tokenize
-
-
-@pytest.fixture
-def reuters_dataset(temp_reuters_headlines):
-    """Reuters sample CSV loaded as a dataset."""
-    return load_csv(file_path=str(temp_reuters_headlines))
+from t5.data import build_datasets, load_csv, split_frame
 
 
 class TestLoadCSV:
-    """test loads csv from file path"""
+    def test_keeps_only_the_requested_columns(self, temp_reuters_file):
+        frame = load_csv(temp_reuters_file, ["Description", "Headlines"])
 
-    def test_keeps_both_text_columns(self, reuters_dataset):
-        """test the description and its headline both survive loading"""
-        assert "Description" in reuters_dataset.column_names
-        assert "Headlines" in reuters_dataset.column_names
+        assert list(frame.columns) == ["Description", "Headlines"]
 
+    def test_drops_rows_missing_either_side(self, tmp_path):
+        path = tmp_path / "gaps.csv"
+        pd.DataFrame({"Description": ["text", None], "Headlines": ["head", "head2"]}).to_csv(path, index=False)
 
-class TestSplitCSV:
-    """test splits a dataset into train and test"""
+        assert len(load_csv(path, ["Description", "Headlines"])) == 1
 
-    def test_keeps_every_row(self, reuters_dataset, reuters_rows):
-        """test no row is lost or duplicated across the splits"""
-        train, test = split_csv(reuters_dataset)
+    def test_drops_duplicate_pairs(self, tmp_path):
+        path = tmp_path / "dupes.csv"
+        pd.DataFrame({"Description": ["a", "a", "b"], "Headlines": ["x", "x", "y"]}).to_csv(path, index=False)
 
-        assert len(train) + len(test) == len(reuters_rows)
+        assert len(load_csv(path, ["Description", "Headlines"])) == 2
 
-    def test_holds_out_a_test_split(self, reuters_dataset):
-        """test both splits carry rows to work with"""
-        train, test = split_csv(reuters_dataset)
-
-        assert len(train) > len(test) > 0
-
-    def test_splits_do_not_overlap(self, reuters_dataset):
-        """test a headline lands in exactly one split"""
-        train, test = split_csv(reuters_dataset)
-
-        assert set(train["Headlines"]).isdisjoint(test["Headlines"])
-
-    def test_is_reproducible(self, reuters_dataset):
-        """test the same rows land in the same split on every call"""
-        first = split_csv(reuters_dataset)
-        second = split_csv(reuters_dataset)
-
-        assert [s["Headlines"] for s in first] == [s["Headlines"] for s in second]
+    def test_an_absent_column_is_rejected(self, temp_reuters_file):
+        with pytest.raises(KeyError):
+            load_csv(temp_reuters_file, ["Nonexistent"])
 
 
-class TestTokenize:
-    """test tokenizes descriptions as source and headlines as target"""
+class TestSplitFrame:
+    def test_produces_two_named_splits(self, t5_data_args):
+        assert set(split_frame(t5_data_args, seed=42)) == {"train", "validation"}
 
-    @pytest.fixture
-    def tokenized(self, reuters_dataset, t5_tokenizer):
-        """Reuters sample dataset after tokenization."""
-        return tokenize(reuters_dataset, t5_tokenizer)
+    def test_leaves_both_sides_untokenized(self, t5_data_args):
+        splits = split_frame(t5_data_args, seed=42)
 
-    def test_replaces_text_columns(self, tokenized):
-        """test raw text is dropped for model inputs"""
-        assert "Description" not in tokenized.column_names
-        assert "Headlines" not in tokenized.column_names
-        assert "input_ids" in tokenized.column_names
-        assert "labels" in tokenized.column_names
+        assert t5_data_args.source_column in splits["train"].column_names
+        assert t5_data_args.target_column in splits["train"].column_names
+        assert "input_ids" not in splits["train"].column_names
 
-    def test_pads_source_to_config_length(self, tokenized):
-        """test every input matches the configured source length"""
-        assert all(len(row) == T5CFG.max_source_length for row in tokenized["input_ids"])
 
-    def test_pads_target_to_config_length(self, tokenized):
-        """test every label row matches the configured target length"""
-        assert all(len(row) == T5CFG.max_target_length for row in tokenized["labels"])
+@pytest.fixture
+def t5_splits(t5_data_args, t5_tokenizer):
+    """The two splits built from the temporary Reuters CSV."""
+    return build_datasets(t5_data_args, t5_tokenizer, seed=42)
 
-    def test_masks_label_padding(self, tokenized):
-        """test padded label positions are ignored by the loss"""
-        assert any(-100 in row for row in tokenized["labels"])
+
+class TestBuildDatasets:
+    def test_produces_two_named_splits(self, t5_splits):
+        assert set(t5_splits) == {"train", "validation"}
+
+    def test_keeps_every_row(self, t5_data_args, t5_splits):
+        expected = len(load_csv(t5_data_args.data_path, [t5_data_args.source_column, t5_data_args.target_column]))
+
+        assert sum(len(split) for split in t5_splits.values()) == expected
+
+    def test_drops_the_raw_text_columns(self, t5_splits):
+        columns = t5_splits["train"].column_names
+
+        assert "Description" not in columns
+        assert "Headlines" not in columns
+
+    def test_carries_inputs_and_labels(self, t5_splits):
+        columns = t5_splits["train"].column_names
+
+        assert "input_ids" in columns
+        assert "labels" in columns
+
+    def test_respects_the_source_truncation_length(self, t5_data_args, t5_splits):
+        assert all(len(ids) <= t5_data_args.max_source_length for ids in t5_splits["train"]["input_ids"])
+
+    def test_respects_the_target_truncation_length(self, t5_data_args, t5_splits):
+        assert all(len(ids) <= t5_data_args.max_target_length for ids in t5_splits["train"]["labels"])
+
+    def test_max_eval_samples_caps_the_validation_split(self, t5_data_args, t5_tokenizer):
+        capped = dataclasses.replace(t5_data_args, max_eval_samples=1)
+        splits = build_datasets(capped, t5_tokenizer, seed=42)
+
+        assert len(splits["validation"]) == 1
+
+    def test_the_task_prefix_reaches_the_encoded_source(self, t5_data_args, t5_tokenizer, t5_splits):
+        decoded = t5_tokenizer.decode(t5_splits["train"][0]["input_ids"], skip_special_tokens=True)
+
+        assert decoded.startswith(t5_data_args.source_prefix.strip())
+
+    def test_is_reproducible_for_a_seed(self, t5_data_args, t5_tokenizer):
+        first = build_datasets(t5_data_args, t5_tokenizer, seed=42)
+        second = build_datasets(t5_data_args, t5_tokenizer, seed=42)
+
+        assert first["validation"]["labels"] == second["validation"]["labels"]

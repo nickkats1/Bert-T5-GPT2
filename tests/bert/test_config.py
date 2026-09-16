@@ -1,29 +1,57 @@
-from dataclasses import FrozenInstanceError
+import dataclasses
 
 import pytest
 
-from headlines.bert.config import BertCFG
+from bert.config import (
+    CLASSIFICATION,
+    ClassificationDataArguments,
+    ClassificationModelArguments,
+    training_arguments,
+)
 
 
-class TestBertCFG:
-    """test the classification settings every other bert module reads"""
+class TestClassificationModelArguments:
+    def test_defaults_to_a_bert_checkpoint(self):
+        assert ClassificationModelArguments().model_name_or_path == "bert-base-uncased"
 
-    def test_fields_cannot_be_reassigned(self):
-        """test the config is a shared constant rather than mutable state"""
-        config = BertCFG()
+    def test_is_frozen(self):
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            ClassificationModelArguments().model_name_or_path = "other"
 
-        with pytest.raises(FrozenInstanceError):
-            config.num_labels = 5
 
-    def test_num_labels_matches_the_data(self, guardian_rows):
-        """test the head is sized to the labels build_label_maps will find"""
-        assert BertCFG.num_labels == len({label for _, label in guardian_rows})
+class TestClassificationDataArguments:
+    def test_points_at_the_guardian_csv(self):
+        assert ClassificationDataArguments.data_path == "data/guardian_headlines.csv"
 
-    def test_best_model_tracks_rising_accuracy(self):
-        """test the winning checkpoint is the most accurate one, not the least"""
-        assert BertCFG.metric_for_best_model == "accuracy"
-        assert BertCFG.greater_is_better
+    def test_splits_leave_eighty_percent_for_training(self):
+        assert ClassificationDataArguments.test_size == 0.2
 
-    def test_data_path_points_at_a_csv(self):
-        """test load_csv is handed something it can read"""
-        assert BertCFG.data_path.endswith(".csv")
+
+class TestTrainingArguments:
+    def test_every_setting_is_a_real_field(self, tmp_path):
+        args = training_arguments(output_dir=str(tmp_path))
+
+        assert all(hasattr(args, name) for name in CLASSIFICATION)
+
+    def test_settings_reach_the_arguments(self, tmp_path):
+        args = training_arguments(output_dir=str(tmp_path))
+        normalised = {"report_to"}
+
+        for name, value in CLASSIFICATION.items():
+            if name not in normalised:
+                assert getattr(args, name) == value
+
+    def test_reporting_is_switched_off(self, tmp_path):
+        assert training_arguments(output_dir=str(tmp_path)).report_to == []
+
+    def test_selects_the_weighted_f1_checkpoint(self, tmp_path):
+        assert training_arguments(output_dir=str(tmp_path)).metric_for_best_model == "f1_weighted"
+
+    def test_trains_in_fp16(self, tmp_path):
+        assert training_arguments(output_dir=str(tmp_path)).fp16 is True
+
+    def test_overrides_win_over_settings(self, tmp_path):
+        args = training_arguments(output_dir=str(tmp_path), num_train_epochs=1, max_steps=5)
+
+        assert args.num_train_epochs == 1
+        assert args.max_steps == 5

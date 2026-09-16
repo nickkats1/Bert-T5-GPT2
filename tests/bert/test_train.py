@@ -1,70 +1,69 @@
 import pytest
+from transformers import Trainer
 
-from headlines.bert.config import BertCFG
-from headlines.bert.data import build_label_maps, load_csv, split_csv, tokenize
-from headlines.bert.eval import compute_metrics
-from headlines.bert.train import build_trainer, build_training_arguments
+from bert.config import training_arguments
+from bert.train import build_model, build_trainer
+from bert.utils_bert import ID2LABEL, LABEL2ID
+
+
+class TestBuildTokenizer:
+    def test_loads_the_requested_checkpoint(self, bert_tokenizer):
+        assert bert_tokenizer.pad_token is not None
+
+    def test_encodes_a_headline(self, bert_tokenizer):
+        assert len(bert_tokenizer("a headline")["input_ids"]) > 0
+
+
+class TestBuildModel:
+    def test_head_is_sized_to_the_label_set(self, bert_model):
+        assert bert_model.config.num_labels == len(ID2LABEL)
+
+    def test_carries_the_id_to_label_mapping(self, bert_model):
+        assert bert_model.config.id2label == ID2LABEL
+
+    def test_carries_the_label_to_id_mapping(self, bert_model):
+        assert bert_model.config.label2id == LABEL2ID
+
+    def test_a_second_model_is_independent(self, bert_model_args):
+        assert build_model(bert_model_args) is not build_model(bert_model_args)
 
 
 @pytest.fixture
-def guardian_dataset(temp_guardian_file):
-    """Guardian sample CSV loaded as a dataset."""
-    return load_csv(file_path=str(temp_guardian_file))
+def bert_trainer(bert_model_args, bert_data_args, tmp_path):
+    """Trainer built on the tiny checkpoint and the temporary CSV."""
+    args = training_arguments(
+        output_dir=str(tmp_path),
+        num_train_epochs=1,
+        eval_strategy="no",
+        save_strategy="no",
+        load_best_model_at_end=False,
+        report_to="none",
+    )
 
-
-class TestBuildTrainingArguments:
-    """test translates the config dataclass into Trainer settings"""
-
-    @pytest.fixture
-    def arguments(self, tmp_path):
-        """Training arguments pointed at a throwaway output directory."""
-        return build_training_arguments(output_dir=str(tmp_path))
-
-    def test_carries_config_values(self, arguments):
-        """test the fields come from BertCFG rather than library defaults"""
-        assert arguments.num_train_epochs == BertCFG.num_train_epochs
-        assert arguments.learning_rate == BertCFG.learning_rate
-        assert arguments.weight_decay == BertCFG.weight_decay
-        assert arguments.seed == BertCFG.seed
-
-    def test_best_model_has_a_criterion(self, arguments):
-        """test load_best_model_at_end knows which metric decides"""
-        assert arguments.load_best_model_at_end
-        assert arguments.metric_for_best_model == BertCFG.metric_for_best_model
-        assert arguments.greater_is_better
-
-    def test_output_dir_is_overridable(self, arguments, tmp_path):
-        """test smoke runs can write somewhere other than the real checkpoint"""
-        assert arguments.output_dir == str(tmp_path)
+    return build_trainer(bert_model_args, bert_data_args, args)
 
 
 class TestBuildTrainer:
-    """test assembles the Trainer that runs the fine-tune"""
+    def test_returns_a_trainer(self, bert_trainer):
+        assert isinstance(bert_trainer, Trainer)
 
-    @pytest.fixture
-    def trainer(self, guardian_dataset, bert_model, bert_tokenizer, tmp_path):
-        """Trainer built over the sample dataset."""
-        label_to_id, _ = build_label_maps(guardian_dataset)
-        train, _, val = split_csv(guardian_dataset)
+    def test_holds_a_training_split(self, bert_trainer):
+        assert len(bert_trainer.train_dataset) > 0
 
-        return build_trainer(
-            bert_model,
-            bert_tokenizer,
-            tokenize(train, bert_tokenizer, label_to_id),
-            tokenize(val, bert_tokenizer, label_to_id),
-            output_dir=str(tmp_path),
+    def test_evaluates_on_the_validation_split(self, bert_trainer):
+        assert len(bert_trainer.eval_dataset) > 0
+
+    def test_scores_predictions_during_evaluation(self, bert_trainer):
+        assert bert_trainer.compute_metrics is not None
+
+    def test_stops_only_at_the_last_epoch(self, bert_trainer):
+        assert not any(
+            type(callback).__name__ == "EarlyStoppingCallback" for callback in bert_trainer.callback_handler.callbacks
         )
 
-    def test_uses_processing_class(self, trainer, bert_tokenizer):
-        """test the tokenizer is passed the way transformers v5 expects"""
-        assert trainer.processing_class is bert_tokenizer
+    @pytest.mark.integration
+    def test_trains_and_predicts(self, bert_trainer):
+        bert_trainer.train()
+        metrics = bert_trainer.predict(bert_trainer.eval_dataset).metrics
 
-    def test_wires_both_splits(self, trainer):
-        """test train and eval datasets are distinct and tokenized"""
-        assert "input_ids" in trainer.train_dataset.column_names
-        assert "input_ids" in trainer.eval_dataset.column_names
-        assert len(trainer.train_dataset) > len(trainer.eval_dataset)
-
-    def test_scores_with_project_metrics(self, trainer):
-        """test evaluation reports accuracy and weighted f1"""
-        assert trainer.compute_metrics is compute_metrics
+        assert "test_f1_weighted" in metrics

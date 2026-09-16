@@ -3,7 +3,7 @@
 # Override when the venv is not activated, e.g. `make quality PYTHON=venv/bin/python`
 PYTHON ?= python
 
-check_dirs := headlines tests examples
+check_dirs := src tests
 
 style:
 	$(PYTHON) -m ruff check --fix $(check_dirs)
