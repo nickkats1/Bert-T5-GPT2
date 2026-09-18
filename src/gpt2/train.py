@@ -1,5 +1,3 @@
-"""Fine-tune GPT-2 to generate headlines."""
-
 from transformers import (
     AutoModelForCausalLM,
     PreTrainedModel,

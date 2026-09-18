@@ -1,5 +1,3 @@
-"""TextBlob-based sentiment labels for headlines that ship without a label column."""
-
 import pandas as pd
 from textblob import TextBlob
 

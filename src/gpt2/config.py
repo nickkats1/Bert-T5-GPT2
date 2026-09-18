@@ -1,5 +1,3 @@
-"""Arguments for fine-tuning GPT-2 to generate headlines."""
-
 from dataclasses import dataclass
 
 from transformers import TrainingArguments

@@ -1,5 +1,3 @@
-"""Loading, splitting and tokenizing the Reuters description/headline pairs."""
-
 from pathlib import Path
 
 import pandas as pd

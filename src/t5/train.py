@@ -1,5 +1,3 @@
-"""Fine-tune T5 to summarize article descriptions into headlines."""
-
 from transformers import (
     AutoModelForSeq2SeqLM,
     AutoTokenizer,

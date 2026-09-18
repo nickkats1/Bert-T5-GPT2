@@ -1,5 +1,3 @@
-"""Arguments for fine-tuning T5 to summarize descriptions into headlines."""
-
 from dataclasses import dataclass
 
 from transformers import Seq2SeqTrainingArguments

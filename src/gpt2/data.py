@@ -1,5 +1,3 @@
-"""Loading, splitting and tokenizing the Reuters headlines for causal language modelling."""
-
 from pathlib import Path
 
 import pandas as pd

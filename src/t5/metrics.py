@@ -1,5 +1,3 @@
-"""ROUGE scoring of generated headlines against the reference headlines."""
-
 from collections.abc import Callable
 
 import numpy as np

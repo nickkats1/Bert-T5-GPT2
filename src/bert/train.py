@@ -1,5 +1,3 @@
-"""Fine-tune BERT to classify headline sentiment."""
-
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,

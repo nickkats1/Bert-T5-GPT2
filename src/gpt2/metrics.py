@@ -1,5 +1,3 @@
-"""Perplexity of the language model on held-out headlines."""
-
 import math
 
 from datasets import Dataset

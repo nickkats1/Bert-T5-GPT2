@@ -1,5 +1,3 @@
-"""Arguments for fine-tuning BERT on headline sentiment."""
-
 from dataclasses import dataclass
 
 from transformers import TrainingArguments

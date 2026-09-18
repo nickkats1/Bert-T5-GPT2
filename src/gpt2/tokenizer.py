@@ -1,5 +1,3 @@
-"""GPT-2 tokenizer with a pad token that is distinct from the end-of-text token."""
-
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from gpt2.config import ClmModelArguments
